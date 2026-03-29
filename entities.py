@@ -1,11 +1,24 @@
-from game.generator import LaneType
-from engine.ecs import PositionComponent, VelocityComponent, RenderComponent, ColliderComponent
+from PyQt6.QtWidgets import QGraphicsRectItem
+from PyQt6.QtGui import QPen, QColor
+from PyQt6.QtCore import Qt
+
+from generator import LaneType
+from ecs import PositionComponent, VelocityComponent, RenderComponent, ColliderComponent
+
+def add_debug_rect(graphics_item, width, height):
+    debug_rect = QGraphicsRectItem(0, 0, width, height)
+    debug_rect.setPen(QPen(QColor("red"), 2, Qt.PenStyle.SolidLine))
+    debug_rect.setZValue(10)
+    debug_rect.setParentItem(graphics_item)
+    debug_rect.setData(0, "debug_hitbox")
+    debug_rect.setVisible(False)
 
 def create_player(ecs_manager, assets, x, y, size):
     entity_id = ecs_manager.create_entity()
     
     graphics_item = assets.create_entity_graphic("chicken", size, size, "red")
     graphics_item.setZValue(2)
+    add_debug_rect(graphics_item, size, size)
     
     ecs_manager.add_component(entity_id, PositionComponent(x, y))
     ecs_manager.add_component(entity_id, RenderComponent(graphics_item))
@@ -28,7 +41,8 @@ def create_obstacle(ecs_manager, assets, x, y, width, height, speed, direction, 
         tag = "log"
         
     graphics_item.setZValue(1)
-    
+    add_debug_rect(graphics_item, width, height)
+
     ecs_manager.add_component(entity_id, PositionComponent(x, y))
     ecs_manager.add_component(entity_id, VelocityComponent(speed * direction, 0.0))
     ecs_manager.add_component(entity_id, RenderComponent(graphics_item))
@@ -46,6 +60,8 @@ def create_static_obstacle(ecs_manager, assets, x, y, size, tag):
         graphics_item = assets.create_entity_graphic("lilypad", size, size, "mediumseagreen")
         graphics_item.setZValue(0.5)
     
+    add_debug_rect(graphics_item, size, size)
+
     ecs_manager.add_component(entity_id, PositionComponent(x, y))
     ecs_manager.add_component(entity_id, RenderComponent(graphics_item))
     ecs_manager.add_component(entity_id, ColliderComponent(tag, size, size))

@@ -1,29 +1,37 @@
 from PyQt6.QtWidgets import QGraphicsView
 from PyQt6.QtCore import Qt
-from engine.ecs import PositionComponent
-from engine.world import WINDOW_WIDTH, WINDOW_HEIGHT, TILE_SIZE
+
+from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT
+from ecs import PositionComponent
+from events import PlayerMovedEvent, TogglePauseEvent
 
 class GameView(QGraphicsView):
     def __init__(self, world_scene, player_entity_id, ecs_manager, event_manager, parent=None):
         super().__init__(world_scene, parent)
+        self.world_scene = world_scene
         self.player_entity = player_entity_id
         self.ecs = ecs_manager
         self.events = event_manager
         
+        self.input_locked = True 
+
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         
-        initial_pos = self.ecs.get_component(self.player_entity, PositionComponent)
-        self.camera_y = initial_pos.y - 100 
-        
+        if self.player_entity is not None:
+            initial_pos = self.ecs.get_component(self.player_entity, PositionComponent)
+            self.camera_y = initial_pos.y - 100 
+        else:
+            self.camera_y = 0
+            
         self.centerOn(WINDOW_WIDTH / 2, self.camera_y)
 
     def update_camera(self, current_camera_speed):
-        """Kamera aktualizuje się z prędkością podaną przez system trudności."""
         self.camera_y -= current_camera_speed
         
         pos = self.ecs.get_component(self.player_entity, PositionComponent)
-        if not pos: return
+        if not pos: 
+            return
 
         distance_to_center = self.camera_y - pos.y
         max_distance = (WINDOW_HEIGHT / 2) - (3 * TILE_SIZE)
@@ -34,10 +42,23 @@ class GameView(QGraphicsView):
         self.centerOn(WINDOW_WIDTH / 2, self.camera_y)
 
     def keyPressEvent(self, event):
-        if not event: return
+        if not event: 
+            return
         
+        if event.key() == Qt.Key.Key_Escape:
+            self.events.publish(TogglePauseEvent())
+            return
+
+        if self.input_locked: 
+            return
+
+        if event.key() == Qt.Key.Key_F3:
+            self.world_scene.toggle_debug_mode()
+            return
+
         pos = self.ecs.get_component(self.player_entity, PositionComponent)
-        if not pos: return
+        if not pos: 
+            return
 
         pos.prev_x = pos.x
         pos.prev_y = pos.y
@@ -48,21 +69,21 @@ class GameView(QGraphicsView):
         if event.key() == Qt.Key.Key_Up or event.key() == Qt.Key.Key_W:
             pos.y -= TILE_SIZE
             pos.x = snapped_x
-            direction = "GÓRA"
+            direction = "up"
         elif event.key() == Qt.Key.Key_Down or event.key() == Qt.Key.Key_S:
             pos.y += TILE_SIZE
             pos.x = snapped_x
-            direction = "DÓŁ"
+            direction = "down"
         elif event.key() == Qt.Key.Key_Left or event.key() == Qt.Key.Key_A:
             if snapped_x - TILE_SIZE >= 0:
                 pos.x = snapped_x - TILE_SIZE
-                direction = "LEWO"
+                direction = "left"
         elif event.key() == Qt.Key.Key_Right or event.key() == Qt.Key.Key_D:
             if snapped_x + TILE_SIZE < WINDOW_WIDTH:
                 pos.x = snapped_x + TILE_SIZE
-                direction = "PRAWO"
+                direction = "right"
         else:
             super().keyPressEvent(event)
             
         if direction:
-            self.events.emit("PLAYER_MOVED", direction=direction, new_x=pos.x, new_y=pos.y)
+            self.events.publish(PlayerMovedEvent(pos.x, pos.y))

@@ -1,5 +1,4 @@
-# game/difficulty.py
-from engine.world import WINDOW_HEIGHT, TILE_SIZE
+from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT
 
 class DifficultyManager:
     def __init__(self):
@@ -14,8 +13,6 @@ class DifficultyManager:
         self.current_score = 0
 
     def update(self, current_camera_y):
-        """Aktualizuje wszystkie parametry trudności na podstawie postępu gry."""
-        
         if self.camera_speed < self.max_camera_speed:
             self.camera_speed += self.camera_accel
 
@@ -33,7 +30,12 @@ class DifficultyManager:
             self.spawn_rate_multiplier = 2.0
 
     def apply_to_lane_data(self, lane_data):
-        """Modyfikuje surowe dane z generatora mapy o aktualne mnożniki trudności."""
         lane_data.speed *= self.obstacle_speed_multiplier
         lane_data.spawn_rate *= self.spawn_rate_multiplier
         return lane_data
+    
+    def reset(self):
+        self.camera_speed = 0.5        
+        self.obstacle_speed_multiplier = 1.0
+        self.spawn_rate_multiplier = 1.0
+        self.current_score = 0

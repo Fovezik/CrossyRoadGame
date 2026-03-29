@@ -46,7 +46,8 @@ class MapGenerator:
 
         if last_1 in (LaneType.RIVER, LaneType.RIVER_LILY):
             allowed_types.remove(LaneType.RIVER)
-            if LaneType.RIVER_LILY in allowed_types: allowed_types.remove(LaneType.RIVER_LILY)
+            if LaneType.RIVER_LILY in allowed_types: 
+                allowed_types.remove(LaneType.RIVER_LILY)
 
         if last_1 == LaneType.ROAD and last_2 == LaneType.ROAD and last_3 == LaneType.ROAD:
             allowed_types.remove(LaneType.ROAD)

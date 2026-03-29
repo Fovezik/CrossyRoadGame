@@ -2,7 +2,8 @@ import os
 from PyQt6.QtGui import QPixmap, QBrush, QColor, QPen
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsPixmapItem
-from game.generator import LaneType
+
+from generator import LaneType
 
 class AssetManager:
     def __init__(self, tile_size):
@@ -10,10 +11,10 @@ class AssetManager:
         self.lane_brushes = {}
         self.entity_pixmaps = {}
         
-        self._load_lane_brushes()
-        self._load_entity_pixmaps()
+        self.load_lane_brushes()
+        self.load_entity_pixmaps()
 
-    def _load_lane_brushes(self):
+    def load_lane_brushes(self):
         texture_paths = {
             "GRASS_DEFAULT": "assets/grass.png",
             "GRASS_AFTER_ROAD": "assets/grass_road.png",
@@ -38,8 +39,7 @@ class AssetManager:
             else:
                 self.lane_brushes[key] = QBrush(fallback_colors.get(key, QColor("black")))
 
-    def _load_entity_pixmaps(self):
-        """Ładuje grafiki postaci/przeszkód raz do pamięci RAM."""
+    def load_entity_pixmaps(self):
         entity_paths = {
             "chicken": "assets/chicken.png",
             "car": "assets/car.png",

@@ -3,13 +3,10 @@ from PyQt6.QtWidgets import QGraphicsScene, QGraphicsRectItem
 from PyQt6.QtGui import QPen
 from PyQt6.QtCore import Qt
 
-from game.generator import MapGenerator, LaneType
-from game.entities import create_obstacle, create_static_obstacle
-from engine.ecs import MovementSystem, RenderSystem, PositionComponent, VelocityComponent, RenderComponent
-
-TILE_SIZE = 40
-WINDOW_WIDTH = 600
-WINDOW_HEIGHT = 800
+from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT
+from generator import MapGenerator, LaneType
+from entities import create_obstacle, create_static_obstacle
+from ecs import MovementSystem, RenderSystem, PositionComponent, VelocityComponent, RenderComponent
 
 class WorldManager(QGraphicsScene):
     def __init__(self, ecs_manager, difficulty_manager, asset_manager, parent=None):
@@ -26,8 +23,21 @@ class WorldManager(QGraphicsScene):
         self.movement_system = MovementSystem()
         self.render_system = RenderSystem()
 
+        self.debug_mode = False
+
         for _ in range((WINDOW_HEIGHT // TILE_SIZE) + 2):
             self.spawn_new_lane_row()
+
+    def toggle_debug_mode(self):
+        self.debug_mode = not self.debug_mode
+        for item in self.items():
+            if item.data(0) == "debug_hitbox":
+                item.setVisible(self.debug_mode)
+                
+    def apply_debug_to_new_item(self, graphics_item):
+        for child in graphics_item.childItems():
+            if child.data(0) == "debug_hitbox":
+                child.setVisible(self.debug_mode)
 
     def spawn_new_lane_row(self):
         self.highest_y -= TILE_SIZE 
@@ -40,7 +50,6 @@ class WorldManager(QGraphicsScene):
         
         lane_item = QGraphicsRectItem(0, self.highest_y, WINDOW_WIDTH, TILE_SIZE)
         
-        # Logika tekstur przejściowych (Autotiling)
         brush_key = None
         if lane_data.lane_type == LaneType.GRASS:
             prev_lane_type = self.active_lanes_info[-1][0].lane_type if self.active_lanes_info else None
@@ -69,6 +78,7 @@ class WorldManager(QGraphicsScene):
                 x = random.randint(0, (WINDOW_WIDTH // TILE_SIZE) - 1) * TILE_SIZE
                 entity_id, rect_item = create_static_obstacle(self.ecs, self.assets, x, self.highest_y, TILE_SIZE, "tree")
                 self.addItem(rect_item)
+                self.apply_debug_to_new_item(rect_item)
                 self.obstacles.append(entity_id)
                 
         elif lane_data.lane_type == LaneType.RIVER_LILY:
@@ -76,6 +86,7 @@ class WorldManager(QGraphicsScene):
                 x = random.randint(0, (WINDOW_WIDTH // TILE_SIZE) - 1) * TILE_SIZE
                 entity_id, rect_item = create_static_obstacle(self.ecs, self.assets, x, self.highest_y, TILE_SIZE, "lilypad")
                 self.addItem(rect_item)
+                self.apply_debug_to_new_item(rect_item)
                 self.obstacles.append(entity_id)
 
     def update_world(self, camera_y):
@@ -94,7 +105,8 @@ class WorldManager(QGraphicsScene):
         for lane_info in self.active_lanes_info:
             lane_data = lane_info[0]
             y_pos = lane_info[1]
-            if lane_info[3] > 0: lane_info[3] -= 1
+            if lane_info[3] > 0: 
+                lane_info[3] -= 1
                 
             if lane_info[3] <= 0 and lane_data.lane_type in (LaneType.ROAD, LaneType.RIVER):
                 if random.random() < (lane_data.spawn_rate / 2):
@@ -102,14 +114,14 @@ class WorldManager(QGraphicsScene):
                     width = TILE_SIZE * size_multiplier
                     start_x = -width if lane_data.direction == 1 else WINDOW_WIDTH
                     
-                    # UWAGA: Przekazujemy self.assets!
                     entity_id, rect_item = create_obstacle(
                         self.ecs, self.assets, start_x, y_pos, width, TILE_SIZE,
                         lane_data.speed, lane_data.direction, lane_data.lane_type
                     )
                     self.addItem(rect_item)
+                    self.apply_debug_to_new_item(rect_item)
                     self.obstacles.append(entity_id)
-                    
+
                     gap_behind = TILE_SIZE * random.uniform(2, 5) 
                     safe_speed = lane_data.speed if lane_data.speed > 0 else 1
                     lane_info[3] = int((width + gap_behind) / safe_speed)
@@ -120,15 +132,19 @@ class WorldManager(QGraphicsScene):
         active_obstacles = []
         for entity_id in self.obstacles:
             pos = self.ecs.get_component(entity_id, PositionComponent)
-            vel = self.ecs.get_component(entity_id, VelocityComponent)
             render = self.ecs.get_component(entity_id, RenderComponent)
             
-            if not pos or not vel or not render:
+            if not pos or not render:
                 continue
                 
-            direction = 1 if vel.vx > 0 else -1
-            out_of_bounds_x = (direction == 1 and pos.x > WINDOW_WIDTH + 100) or \
-                              (direction == -1 and pos.x < -render.graphics_item.boundingRect().width() - 100)
+            vel = self.ecs.get_component(entity_id, VelocityComponent)
+            out_of_bounds_x = False 
+            
+            if vel:
+                direction = 1 if vel.vx > 0 else -1
+                out_of_bounds_x = (direction == 1 and pos.x > WINDOW_WIDTH + 100) or \
+                                  (direction == -1 and pos.x < -render.graphics_item.boundingRect().width() - 100)
+            
             out_of_bounds_y = pos.y > cull_threshold
 
             if out_of_bounds_x or out_of_bounds_y:
@@ -138,3 +154,13 @@ class WorldManager(QGraphicsScene):
                 active_obstacles.append(entity_id)
                 
         self.obstacles = active_obstacles
+
+    def reset(self):
+        self.clear()
+        self.active_lanes_info.clear()
+        self.obstacles.clear()
+        self.highest_y = WINDOW_HEIGHT
+        self.generator = MapGenerator()
+        
+        for _ in range((WINDOW_HEIGHT // TILE_SIZE) + 2):
+            self.spawn_new_lane_row()
