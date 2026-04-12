@@ -5,7 +5,7 @@ import random
 from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QWidget, QVBoxLayout
 from PyQt6.QtCore import QTimer, Qt
 
-from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT
+from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT, SETTINGS
 from world import WorldManager
 from physics import PhysicsEngine
 from ecs import EntityManager
@@ -39,15 +39,9 @@ class MainWindow(QMainWindow):
         self.event_manager.subscribe("TogglePauseEvent", lambda e: self.toggle_pause())
         self.event_manager.subscribe("GameOverEvent", lambda e: self.game_over())
         self.event_manager.subscribe("PlayerMovedEvent", self.on_player_moved)
+        self.event_manager.subscribe("ReloadConfigEvent", lambda e: self.hot_reload())
 
-        self.high_score = 0
-        self.save_file = "high_score.json"
-        if os.path.exists(self.save_file):
-            try:
-                with open(self.save_file, "r") as file:
-                    self.high_score = json.load(file).get("high_score", 0)
-            except Exception:
-                pass
+        self.high_score = SETTINGS.data["high_score"]
 
         self.game_state = "MENU"
         self.setup_ui()
@@ -163,11 +157,7 @@ class MainWindow(QMainWindow):
         
         if self.difficulty.current_score > self.high_score:
             self.high_score = self.difficulty.current_score
-            try:
-                with open(self.save_file, "w") as file:
-                    json.dump({"high_score": self.high_score}, file)
-            except Exception:
-                pass
+            SETTINGS.write_high_score(self.high_score)
 
         self.title_label.setText(f"GAME OVER\nScore: {self.difficulty.current_score}\nHigh Score: {self.high_score}\n")
         self.title_label.setStyleSheet("color: #F44336; font-size: 40px; font-weight: bold; background: transparent;")
@@ -212,6 +202,11 @@ class MainWindow(QMainWindow):
         saved_seed = self.replay.load_from_file("replay.json")
         if saved_seed is not None:
             self.start(saved_seed, is_replay=True, lock_input=True)
+
+    def hot_reload(self):
+        SETTINGS.load()
+        self.current_seed = random.randint(0, 999999)
+        self.start(self.current_seed, is_replay=False, lock_input=False)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

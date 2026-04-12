@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt
 
 from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT
 from ecs import PositionComponent
-from events import PlayerMovedEvent, TogglePauseEvent
+from events import PlayerMovedEvent, TogglePauseEvent, ReloadConfigEvent
 
 class GameView(QGraphicsView):
     def __init__(self, world_scene, player_entity_id, ecs_manager, event_manager, parent=None):
@@ -54,6 +54,10 @@ class GameView(QGraphicsView):
 
         if event.key() == Qt.Key.Key_F3:
             self.world_scene.toggle_debug_mode()
+            return
+        
+        if event.key() == Qt.Key.Key_F5:
+            self.events.publish(ReloadConfigEvent())
             return
 
         pos = self.ecs.get_component(self.player_entity, PositionComponent)

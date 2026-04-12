@@ -1,0 +1,20 @@
+{
+    "player_size": 40,
+    "camera_start_speed": 0.5,
+    "camera_max_speed": 4.0,
+    "camera_accel": 0.0001,
+    "obstacle_speed": 1.2,
+    "spawn_rate": 1.2,
+    "custom_map": [
+        "Grass",
+        "Grass",
+        "Grass",
+        "Grass",
+        "Grass",
+        "River",
+        "Grass",
+        "Road",
+        "Grass"
+    ],
+    "high_score": 11
+}

@@ -15,6 +15,9 @@ class TogglePauseEvent:
 class GameOverEvent:
     pass
 
+class ReloadConfigEvent: 
+    pass
+
 class EventManager:
     def __init__(self):
         self.listeners = {}
@@ -53,3 +56,4 @@ class LoggerSystem:
 
     def log_collision(self, event):
         logging.warning(f"Collision: {event.tag}")
+
