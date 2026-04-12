@@ -1,4 +1,4 @@
-from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT
+from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT, SETTINGS
 
 class DifficultyManager:
     def __init__(self):
@@ -35,7 +35,9 @@ class DifficultyManager:
         return lane_data
     
     def reset(self):
-        self.camera_speed = 0.5        
-        self.obstacle_speed_multiplier = 1.0
-        self.spawn_rate_multiplier = 1.0
+        self.camera_speed = SETTINGS.data["camera_start_speed"]
+        self.camera_accel = SETTINGS.data["camera_accel"]
+        self.max_camera_speed = SETTINGS.data["camera_max_speed"]
+        self.obstacle_speed_multiplier = SETTINGS.data["obstacle_speed"]
+        self.spawn_rate_multiplier = SETTINGS.data["spawn_rate"]
         self.current_score = 0

@@ -4,6 +4,7 @@ from PyQt6.QtCore import Qt
 
 from generator import LaneType
 from ecs import PositionComponent, VelocityComponent, RenderComponent, ColliderComponent
+from config import SETTINGS
 
 def add_debug_rect(graphics_item, width, height):
     debug_rect = QGraphicsRectItem(0, 0, width, height)
@@ -16,6 +17,7 @@ def add_debug_rect(graphics_item, width, height):
 def create_player(ecs_manager, assets, x, y, size):
     entity_id = ecs_manager.create_entity()
     
+    size = SETTINGS.data["player_size"]
     graphics_item = assets.create_entity_graphic("chicken", size, size, "red")
     graphics_item.setZValue(2)
     add_debug_rect(graphics_item, size, size)
