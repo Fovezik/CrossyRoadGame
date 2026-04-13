@@ -1,7 +1,6 @@
 import sys
-import json
-import os
 import random
+import socket
 from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QWidget, QVBoxLayout
 from PyQt6.QtCore import QTimer, Qt
 
@@ -25,6 +24,9 @@ class MainWindow(QMainWindow):
         self.frame_count = 0 
         self.replay = ReplayManager()
 
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client.connect((SETTINGS.data["host"], SETTINGS.data["port"]))
+        
         self.assets = AssetManager(TILE_SIZE)
         self.ecs = EntityManager()
         self.event_manager = EventManager()
@@ -49,7 +51,8 @@ class MainWindow(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.game_loop)
         
-        self.current_seed = random.randint(0, 999999)
+        #self.current_seed = random.randint(0, 999999)
+        self.current_seed = 12345
         self.start(self.current_seed, is_replay=False, lock_input=True)
 
     def setup_ui(self):
@@ -127,7 +130,7 @@ class MainWindow(QMainWindow):
             self.timer.start(int(1000 / 60))
             self.view.setFocus()
         elif self.game_state == "GAME_OVER":
-            self.current_seed = random.randint(0, 999999)
+            #self.current_seed = random.randint(0, 999999)
             self.start(self.current_seed, is_replay=False, lock_input=False)
             self.replay_btn.hide()
             self.save_replay_btn.hide()
@@ -188,6 +191,7 @@ class MainWindow(QMainWindow):
 
     def on_player_moved(self, event):
         self.replay.record_action(self.frame_count, event.x, event.y)
+        self.client.send((f"x: {event.x}, y: {event.y}").encode('utf8'))
     
     def watch_replay(self):
         saved_seed = self.replay.start_replaying()
@@ -205,7 +209,7 @@ class MainWindow(QMainWindow):
 
     def hot_reload(self):
         SETTINGS.load()
-        self.current_seed = random.randint(0, 999999)
+        #self.current_seed = random.randint(0, 999999)
         self.start(self.current_seed, is_replay=False, lock_input=False)
 
 if __name__ == "__main__":

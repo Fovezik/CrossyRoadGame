@@ -1,5 +1,4 @@
 from PyQt6.QtCore import QRectF
-
 from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT
 from generator import LaneType
 from ecs import PositionComponent, ColliderComponent, VelocityComponent
@@ -9,7 +8,6 @@ class PhysicsEngine:
     def check_collisions(self, ecs_manager, player_entity_id, world_manager, camera_y, event_manager):
         player_pos = ecs_manager.get_component(player_entity_id, PositionComponent)
         player_col = ecs_manager.get_component(player_entity_id, ColliderComponent)
-        
         if not player_pos or not player_col: 
             return
 
