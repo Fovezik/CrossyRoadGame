@@ -3,6 +3,7 @@
     "camera_start_speed": 0.5,
     "camera_max_speed": 4.0,
     "camera_accel": 0.0001,
+    "camera_chase": false,
     "obstacle_speed": 1.2,
     "spawn_rate": 1.2,
     "custom_map": [
@@ -16,5 +17,5 @@
         "Road",
         "Grass"
     ],
-    "high_score": 11
+    "high_score": 45
 }

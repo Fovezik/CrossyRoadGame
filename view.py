@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QGraphicsView
 from PyQt6.QtCore import Qt
 
-from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT
+from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT, SETTINGS
 from ecs import PositionComponent
 from events import PlayerMovedEvent, TogglePauseEvent, ReloadConfigEvent
 
@@ -27,17 +27,19 @@ class GameView(QGraphicsView):
         self.centerOn(WINDOW_WIDTH / 2, self.camera_y)
 
     def update_camera(self, current_camera_speed):
-        self.camera_y -= current_camera_speed
-        
         pos = self.ecs.get_component(self.player_entity, PositionComponent)
         if not pos: 
             return
+        
+        if not SETTINGS.data["camera_chase"]:
+            self.camera_y = pos.y
+        else:
+            self.camera_y -= current_camera_speed
+            distance_to_center = self.camera_y - pos.y
+            max_distance = (WINDOW_HEIGHT / 2) - (3 * TILE_SIZE)
 
-        distance_to_center = self.camera_y - pos.y
-        max_distance = (WINDOW_HEIGHT / 2) - (3 * TILE_SIZE)
-
-        if distance_to_center > max_distance:
-            self.camera_y = pos.y + max_distance
+            if distance_to_center > max_distance:
+                self.camera_y = pos.y + max_distance
 
         self.centerOn(WINDOW_WIDTH / 2, self.camera_y)
 

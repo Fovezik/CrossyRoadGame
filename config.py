@@ -23,13 +23,12 @@ class GameConfig:
         self.data["camera_start_speed"] = self.data.get("camera_start_speed", 0.5)
         self.data["camera_max_speed"] = self.data.get("camera_max_speed", 3.5)
         self.data["camera_accel"] = self.data.get("camera_accel", 0.0001)
+        self.data["camera_chase"] = self.data.get("camera_chase", False)
         self.data["obstacle_speed"] = self.data.get("obstacle_speed", 1.0)
         self.data["spawn_rate"] = self.data.get("spawn_rate", 1.0)
         if not isinstance(self.data.get("custom_map"), list):
             self.data["custom_map"] = ["Grass", "Grass", "Grass", "Grass", "Grass", "Grass", "Grass", "Grass", "Grass"]
         self.data["high_score"] = self.data.get("high_score", 0)
-        self.data["HOST"] = self.data.get("HOST", "127.0.0.1")
-        self.data["PORT"] = self.data.get("PORT", 1234)
 
     def write_high_score(self, score):
         self.data["high_score"] = score
