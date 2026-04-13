@@ -17,5 +17,7 @@
         "Road",
         "Grass"
     ],
-    "high_score": 45
+    "high_score": 45,
+    "host": "127.0.0.1",
+    "port": 12345
 }
