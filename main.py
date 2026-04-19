@@ -1,16 +1,21 @@
 import sys
+import json
+import os
 import random
 import socket
+import threading
+import queue
+import json
 from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QWidget, QVBoxLayout
 from PyQt6.QtCore import QTimer, Qt
 
 from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT, SETTINGS
 from world import WorldManager
 from physics import PhysicsEngine
-from ecs import EntityManager
+from ecs import EntityManager, PositionComponent
 from events import EventManager, LoggerSystem 
 from view import GameView
-from entities import create_player
+from entities import create_player, create_remote_player
 from difficulty import DifficultyManager
 from assets import AssetManager
 from replay import ReplayManager
@@ -24,8 +29,12 @@ class MainWindow(QMainWindow):
         self.frame_count = 0 
         self.replay = ReplayManager()
 
+        self.my_id = None
+        self.remote_players = {}
+        self.net_queue = queue.Queue()
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client.connect((SETTINGS.data["host"], SETTINGS.data["port"]))
+        threading.Thread(target=self.listen_to_server, daemon=True).start()
         
         self.assets = AssetManager(TILE_SIZE)
         self.ecs = EntityManager()
@@ -51,9 +60,23 @@ class MainWindow(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.game_loop)
         
-        #self.current_seed = random.randint(0, 999999)
         self.current_seed = 12345
+        #self.current_seed = random.randint(0, 999999)
         self.start(self.current_seed, is_replay=False, lock_input=True)
+
+    def listen_to_server(self):
+        buffer = ""
+        while True:
+            try:
+                data = self.client.recv(1024).decode('utf8')
+                if not data: break
+                buffer += data
+                while "\n" in buffer:
+                    line, buffer = buffer.split("\n", 1)
+                    msg = json.loads(line)
+                    self.net_queue.put(msg)
+            except:
+                break
 
     def setup_ui(self):
         self.score_label = QLabel(f"Score: 0\nHigh Score: {self.high_score}", self.view)
@@ -179,6 +202,30 @@ class MainWindow(QMainWindow):
         self.menu_overlay.show()
 
     def game_loop(self):
+        while not self.net_queue.empty():
+            msg = self.net_queue.get()
+            
+            if msg["type"] == "INIT": 
+                self.my_id = msg["id"]
+                
+            elif msg["type"] == "MOVE":
+                pid = msg["id"]
+                if pid not in self.remote_players:
+                    size = SETTINGS.data.get("player_size", 40)
+                    ecs_id, rect = create_remote_player(
+                        self.ecs, self.assets, msg["x"], msg["y"], size, 
+                        pid, f"Gracz {pid}", "blue"
+                    )
+                    self.world.addItem(rect)
+                    self.remote_players[pid] = ecs_id
+                
+                else:
+                    ecs_id = self.remote_players[pid]
+                    pos = self.ecs.get_component(ecs_id, PositionComponent)
+                    if pos:
+                        pos.x = msg["x"]
+                        pos.y = msg["y"]
+                        
         self.frame_count += 1
         if self.replay.is_replaying:
             self.replay.apply_actions(self.frame_count, self.ecs, self.player_entity)
@@ -191,7 +238,9 @@ class MainWindow(QMainWindow):
 
     def on_player_moved(self, event):
         self.replay.record_action(self.frame_count, event.x, event.y)
-        self.client.send((f"x: {event.x}, y: {event.y}").encode('utf8'))
+        if self.my_id is not None:
+            msg = {"type": "MOVE", "id": self.my_id, "x": event.x, "y": event.y}
+            self.client.send((json.dumps(msg) + "\n").encode('utf8'))
     
     def watch_replay(self):
         saved_seed = self.replay.start_replaying()

@@ -1,5 +1,5 @@
-from PyQt6.QtWidgets import QGraphicsRectItem
-from PyQt6.QtGui import QPen, QColor
+from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsItemGroup, QGraphicsTextItem
+from PyQt6.QtGui import QPen, QColor, QFont
 from PyQt6.QtCore import Qt
 
 from generator import LaneType
@@ -27,6 +27,26 @@ def create_player(ecs_manager, assets, x, y, size):
     ecs_manager.add_component(entity_id, ColliderComponent("player", size, size))
     
     return entity_id, graphics_item
+
+def create_remote_player(ecs_manager, assets, x, y, size, player_id, name, color_name):
+    entity_id = ecs_manager.create_entity()
+
+    group = QGraphicsItemGroup()
+    graphics_item = assets.create_entity_graphic("chicken", size, size, color_name)
+    group.addToGroup(graphics_item)
+    
+    text_item = QGraphicsTextItem(name)
+    text_item.setDefaultTextColor(QColor(color_name))
+    text_item.setFont(QFont("Arial", 10, QFont.Weight.Bold))
+    text_width = text_item.boundingRect().width()
+    text_item.setPos((size - text_width) / 2, -20)
+    group.addToGroup(text_item)
+    
+    group.setZValue(2.5)
+    ecs_manager.add_component(entity_id, PositionComponent(x, y))
+    ecs_manager.add_component(entity_id, RenderComponent(group))
+    
+    return entity_id, group
 
 def create_obstacle(ecs_manager, assets, x, y, width, height, speed, direction, lane_type):
     entity_id = ecs_manager.create_entity()
