@@ -3,7 +3,7 @@ from PyQt6.QtGui import QPen, QColor, QFont
 from PyQt6.QtCore import Qt
 
 from generator import LaneType
-from ecs import PositionComponent, VelocityComponent, RenderComponent, ColliderComponent
+from ecs import AIComponent, PositionComponent, VelocityComponent, RenderComponent, ColliderComponent
 from config import SETTINGS
 
 def add_debug_rect(graphics_item, width, height):
@@ -45,6 +45,30 @@ def create_remote_player(ecs_manager, assets, x, y, size, player_id, name, color
     group.setZValue(2.5)
     ecs_manager.add_component(entity_id, PositionComponent(x, y))
     ecs_manager.add_component(entity_id, RenderComponent(group))
+    
+    return entity_id, group
+
+def create_ai_enemy(ecs_manager, assets, x, y, size):
+    entity_id = ecs_manager.create_entity()
+    group = QGraphicsItemGroup()
+    
+    # Grafika AI
+    graphics_item = assets.create_entity_graphic("chicken", size, size, "black")
+    group.addToGroup(graphics_item)
+    
+    # Napis "Złe AI" nad głową
+    text_item = QGraphicsTextItem("Złe AI")
+    text_item.setDefaultTextColor(QColor("black"))
+    text_item.setFont(QFont("Arial", 10, QFont.Weight.Bold))
+    text_item.setPos((size - text_item.boundingRect().width()) / 2, -20)
+    group.addToGroup(text_item)
+    
+    group.setZValue(2.5)
+    
+    # Komponenty
+    ecs_manager.add_component(entity_id, PositionComponent(x, y))
+    ecs_manager.add_component(entity_id, RenderComponent(group))
+    ecs_manager.add_component(entity_id, AIComponent(speed=1.5))
     
     return entity_id, group
 

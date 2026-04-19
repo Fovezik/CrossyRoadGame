@@ -24,6 +24,11 @@ class ColliderComponent:
     tag: str
     width: float
     height: float
+    
+@dataclass
+class AIComponent:
+    speed: float = 1.5
+    state: str = "IDLE"
 
 
 class EntityManager:

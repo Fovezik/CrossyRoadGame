@@ -15,10 +15,11 @@ from physics import PhysicsEngine
 from ecs import EntityManager, PositionComponent
 from events import EventManager, LoggerSystem 
 from view import GameView
-from entities import create_player, create_remote_player
+from entities import create_player, create_remote_player, create_ai_enemy
 from difficulty import DifficultyManager
 from assets import AssetManager
 from replay import ReplayManager
+from ai import AISystem
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -41,6 +42,7 @@ class MainWindow(QMainWindow):
         self.event_manager = EventManager()
         self.logger = LoggerSystem(self.event_manager)
         self.physics = PhysicsEngine()
+        self.ai_system = AISystem()
         self.difficulty = DifficultyManager() 
         self.world = WorldManager(self.ecs, self.difficulty, self.assets) 
         
@@ -129,6 +131,9 @@ class MainWindow(QMainWindow):
         start_y = WINDOW_HEIGHT - (4 * TILE_SIZE)
         self.player_entity, player_rect = create_player(self.ecs, self.assets, start_x, start_y, TILE_SIZE)
         self.world.addItem(player_rect)
+        
+        bot_id, bot_rect = create_ai_enemy(self.ecs, self.assets, start_x, start_y - 200, TILE_SIZE)
+        self.world.addItem(bot_rect)
 
         self.view.player_entity = self.player_entity
         self.view.camera_y = start_y - 100
@@ -230,6 +235,7 @@ class MainWindow(QMainWindow):
         if self.replay.is_replaying:
             self.replay.apply_actions(self.frame_count, self.ecs, self.player_entity)
             
+        self.ai_system.update(self.ecs, self.player_entity)
         self.difficulty.update(self.view.camera_y)
         self.view.update_camera(self.difficulty.camera_speed) 
         self.world.update_world(self.view.camera_y)
