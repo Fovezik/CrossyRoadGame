@@ -62,7 +62,7 @@ class MainWindow(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.game_loop)
         
-        self.current_seed = 12345
+        self.current_seed = 1234
         #self.current_seed = random.randint(0, 999999)
         self.start(self.current_seed, is_replay=False, lock_input=True)
 
@@ -129,13 +129,16 @@ class MainWindow(QMainWindow):
 
         start_x = (WINDOW_WIDTH // TILE_SIZE // 2) * TILE_SIZE
         start_y = WINDOW_HEIGHT - (4 * TILE_SIZE)
-        self.player_entity, player_rect = create_player(self.ecs, self.assets, start_x, start_y, TILE_SIZE)
-        self.world.addItem(player_rect)
+        #self.player_entity, player_rect = create_player(self.ecs, self.assets, start_x, start_y, TILE_SIZE)
+        #self.world.addItem(player_rect)
         
         bot_id, bot_rect = create_ai_enemy(self.ecs, self.assets, start_x, start_y - 200, TILE_SIZE)
         self.world.addItem(bot_rect)
 
-        self.view.player_entity = self.player_entity
+        self.player_entity = bot_id
+        self.view.player_entity = bot_id
+
+        #self.view.player_entity = self.player_entity
         self.view.camera_y = start_y - 100
         self.view.centerOn(WINDOW_WIDTH / 2, self.view.camera_y)
 
@@ -235,7 +238,7 @@ class MainWindow(QMainWindow):
         if self.replay.is_replaying:
             self.replay.apply_actions(self.frame_count, self.ecs, self.player_entity)
             
-        self.ai_system.update(self.ecs, self.player_entity)
+        self.ai_system.update(self.ecs, self.world)
         self.difficulty.update(self.view.camera_y)
         self.view.update_camera(self.difficulty.camera_speed) 
         self.world.update_world(self.view.camera_y)

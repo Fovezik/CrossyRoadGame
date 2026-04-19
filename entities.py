@@ -51,24 +51,20 @@ def create_remote_player(ecs_manager, assets, x, y, size, player_id, name, color
 def create_ai_enemy(ecs_manager, assets, x, y, size):
     entity_id = ecs_manager.create_entity()
     group = QGraphicsItemGroup()
-    
-    # Grafika AI
+
     graphics_item = assets.create_entity_graphic("chicken", size, size, "black")
     group.addToGroup(graphics_item)
-    
-    # Napis "Złe AI" nad głową
-    text_item = QGraphicsTextItem("Złe AI")
+
+    text_item = QGraphicsTextItem("AI")
     text_item.setDefaultTextColor(QColor("black"))
     text_item.setFont(QFont("Arial", 10, QFont.Weight.Bold))
     text_item.setPos((size - text_item.boundingRect().width()) / 2, -20)
     group.addToGroup(text_item)
-    
     group.setZValue(2.5)
-    
-    # Komponenty
+
     ecs_manager.add_component(entity_id, PositionComponent(x, y))
     ecs_manager.add_component(entity_id, RenderComponent(group))
-    ecs_manager.add_component(entity_id, AIComponent(speed=1.5))
+    ecs_manager.add_component(entity_id, AIComponent())
     
     return entity_id, group
 

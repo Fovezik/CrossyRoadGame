@@ -26,6 +26,7 @@ class GameConfig:
         self.data["camera_chase"] = self.data.get("camera_chase", False)
         self.data["obstacle_speed"] = self.data.get("obstacle_speed", 1.0)
         self.data["spawn_rate"] = self.data.get("spawn_rate", 1.0)
+        self.data["ai_move_delay"] = self.data.get("ai_move_delay", 20)
         if not isinstance(self.data.get("custom_map"), list):
             self.data["custom_map"] = ["Grass", "Grass", "Grass", "Grass", "Grass", "Grass", "Grass", "Grass", "Grass"]
         self.data["high_score"] = self.data.get("high_score", 0)

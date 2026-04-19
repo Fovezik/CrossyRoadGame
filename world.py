@@ -6,7 +6,7 @@ from PyQt6.QtCore import Qt
 from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT
 from generator import MapGenerator, LaneType
 from entities import create_obstacle, create_static_obstacle
-from ecs import MovementSystem, RenderSystem, PositionComponent, VelocityComponent, RenderComponent
+from ecs import ColliderComponent, MovementSystem, RenderSystem, PositionComponent, VelocityComponent, RenderComponent
 
 class WorldManager(QGraphicsScene):
     def __init__(self, ecs_manager, difficulty_manager, asset_manager, parent=None):
@@ -74,20 +74,50 @@ class WorldManager(QGraphicsScene):
         self.active_lanes_info.append([lane_data, self.highest_y, lane_item, 0])
 
         if lane_data.lane_type == LaneType.GRASS:
+            forbidden_x = getattr(self, 'last_lily_x', [])
+            
             for _ in range(random.randint(0, 3)):
                 x = random.randint(0, (WINDOW_WIDTH // TILE_SIZE) - 1) * TILE_SIZE
+                if x in forbidden_x:
+                    continue 
+                    
                 entity_id, rect_item = create_static_obstacle(self.ecs, self.assets, x, self.highest_y, TILE_SIZE, "tree")
                 self.addItem(rect_item)
                 self.apply_debug_to_new_item(rect_item)
                 self.obstacles.append(entity_id)
                 
+            self.last_lily_x = []
+            
         elif lane_data.lane_type == LaneType.RIVER_LILY:
+            current_lily_x = []
             for _ in range(random.randint(3, 6)):
                 x = random.randint(0, (WINDOW_WIDTH // TILE_SIZE) - 1) * TILE_SIZE
-                entity_id, rect_item = create_static_obstacle(self.ecs, self.assets, x, self.highest_y, TILE_SIZE, "lilypad")
-                self.addItem(rect_item)
-                self.apply_debug_to_new_item(rect_item)
-                self.obstacles.append(entity_id)
+                if x not in current_lily_x:
+                    current_lily_x.append(x)
+                    entity_id, rect_item = create_static_obstacle(self.ecs, self.assets, x, self.highest_y, TILE_SIZE, "lilypad")
+                    self.addItem(rect_item)
+                    self.apply_debug_to_new_item(rect_item)
+                    self.obstacles.append(entity_id)
+            
+            self.last_lily_x = current_lily_x
+            y_below = self.highest_y + TILE_SIZE
+            trees_to_remove = []
+            for ent_id in self.obstacles:
+                pos = self.ecs.get_component(ent_id, PositionComponent)
+                col = self.ecs.get_component(ent_id, ColliderComponent)
+                if col and col.tag == "tree" and pos.y == y_below and pos.x in current_lily_x:
+                    trees_to_remove.append(ent_id)
+
+            for ent_id in trees_to_remove:
+                render = self.ecs.get_component(ent_id, RenderComponent)
+                if render:
+                    self.removeItem(render.graphics_item)
+                self.ecs.destroy_entity(ent_id)
+                if ent_id in self.obstacles:
+                    self.obstacles.remove(ent_id)
+
+        else:
+            self.last_lily_x = []
 
     def update_world(self, camera_y):
         if self.highest_y > camera_y - WINDOW_HEIGHT:

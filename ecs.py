@@ -27,8 +27,8 @@ class ColliderComponent:
     
 @dataclass
 class AIComponent:
-    speed: float = 1.5
     state: str = "IDLE"
+    timer: int = 0
 
 
 class EntityManager:

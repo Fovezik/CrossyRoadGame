@@ -50,20 +50,12 @@ class MapGenerator:
                 chosen_type = LaneType.GRASS
         else:
             last_1 = self.lane_history[-1] if len(self.lane_history) >= 1 else None
-            last_2 = self.lane_history[-2] if len(self.lane_history) >= 2 else None
-            last_3 = self.lane_history[-3] if len(self.lane_history) >= 3 else None
-
             allowed_types = [LaneType.GRASS, LaneType.ROAD, LaneType.RIVER, LaneType.RIVER_LILY]
 
-            if last_1 in (LaneType.RIVER, LaneType.RIVER_LILY):
-                allowed_types.remove(LaneType.RIVER)
-                if LaneType.RIVER_LILY in allowed_types: 
-                    allowed_types.remove(LaneType.RIVER_LILY)
-
-            if last_1 == LaneType.ROAD and last_2 == LaneType.ROAD and last_3 == LaneType.ROAD:
-                allowed_types.remove(LaneType.ROAD)
-
-            chosen_type = random.choice(allowed_types)
+            if last_1 in (LaneType.RIVER, LaneType.RIVER_LILY, LaneType.ROAD):
+                chosen_type = LaneType.GRASS
+            else:
+                chosen_type = random.choice(allowed_types)
 
         direction = 0
         speed = 0.0
