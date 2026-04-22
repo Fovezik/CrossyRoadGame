@@ -1,4 +1,3 @@
-import math
 import random
 from PyQt6.QtCore import QRectF
 from config import TILE_SIZE, WINDOW_WIDTH, SETTINGS

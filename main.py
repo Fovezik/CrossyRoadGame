@@ -1,6 +1,5 @@
 import sys
 import json
-import os
 import random
 import socket
 import threading
