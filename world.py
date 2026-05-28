@@ -14,7 +14,9 @@ class WorldManager(QGraphicsScene):
         self.ecs = ecs_manager
         self.difficulty = difficulty_manager
         self.assets = asset_manager
-        self.generator = MapGenerator()
+        
+        self.is_host = True
+        self.on_spawn_obstacle = None
         
         self.active_lanes_info = [] 
         self.obstacles = []
@@ -25,8 +27,7 @@ class WorldManager(QGraphicsScene):
 
         self.debug_mode = False
 
-        for _ in range((WINDOW_HEIGHT // TILE_SIZE) + 2):
-            self.spawn_new_lane_row()
+        self.reset(1234)
 
     def toggle_debug_mode(self):
         self.debug_mode = not self.debug_mode
@@ -76,8 +77,8 @@ class WorldManager(QGraphicsScene):
         if lane_data.lane_type == LaneType.GRASS:
             forbidden_x = getattr(self, 'last_lily_x', [])
             
-            for _ in range(random.randint(0, 3)):
-                x = random.randint(0, (WINDOW_WIDTH // TILE_SIZE) - 1) * TILE_SIZE
+            for _ in range(self.map_rng.randint(0, 3)):
+                x = self.map_rng.randint(0, (WINDOW_WIDTH // TILE_SIZE) - 1) * TILE_SIZE
                 if x in forbidden_x:
                     continue 
                     
@@ -90,8 +91,8 @@ class WorldManager(QGraphicsScene):
             
         elif lane_data.lane_type == LaneType.RIVER_LILY:
             current_lily_x = []
-            for _ in range(random.randint(3, 6)):
-                x = random.randint(0, (WINDOW_WIDTH // TILE_SIZE) - 1) * TILE_SIZE
+            for _ in range(self.map_rng.randint(3, 6)):
+                x = self.map_rng.randint(0, (WINDOW_WIDTH // TILE_SIZE) - 1) * TILE_SIZE
                 if x not in current_lily_x:
                     current_lily_x.append(x)
                     entity_id, rect_item = create_static_obstacle(self.ecs, self.assets, x, self.highest_y, TILE_SIZE, "lilypad")
@@ -139,7 +140,9 @@ class WorldManager(QGraphicsScene):
                 lane_info[3] -= 1
                 
             if lane_info[3] <= 0 and lane_data.lane_type in (LaneType.ROAD, LaneType.RIVER):
-                if random.random() < (lane_data.spawn_rate / 2):
+                if not getattr(self, 'is_host', True):
+                    pass
+                elif random.random() < (lane_data.spawn_rate / 2):
                     size_multiplier = random.choice([1, 2]) if lane_data.lane_type == LaneType.ROAD else random.choice([2, 3, 4])
                     width = TILE_SIZE * size_multiplier
                     start_x = -width if lane_data.direction == 1 else WINDOW_WIDTH
@@ -155,6 +158,9 @@ class WorldManager(QGraphicsScene):
                     gap_behind = TILE_SIZE * random.uniform(2, 5) 
                     safe_speed = lane_data.speed if lane_data.speed > 0 else 1
                     lane_info[3] = int((width + gap_behind) / safe_speed)
+
+                    if self.on_spawn_obstacle:
+                        self.on_spawn_obstacle(start_x, y_pos, width, lane_data.speed, lane_data.direction, lane_data.lane_type)
 
         self.movement_system.update(self.ecs)
         self.render_system.update(self.ecs)
@@ -185,12 +191,22 @@ class WorldManager(QGraphicsScene):
                 
         self.obstacles = active_obstacles
 
-    def reset(self):
+    def reset(self, seed=1234):
         self.clear()
         self.active_lanes_info.clear()
         self.obstacles.clear()
         self.highest_y = WINDOW_HEIGHT
-        self.generator = MapGenerator()
+        self.map_rng = random.Random(seed)
+        self.generator = MapGenerator(seed)
         
         for _ in range((WINDOW_HEIGHT // TILE_SIZE) + 2):
             self.spawn_new_lane_row()
+
+    def spawn_obstacle_from_net(self, x, y, width, speed, direction, lane_type):
+        entity_id, rect_item = create_obstacle(
+            self.ecs, self.assets, x, y, width, TILE_SIZE,
+            speed, direction, lane_type
+        )
+        self.addItem(rect_item)
+        self.apply_debug_to_new_item(rect_item)
+        self.obstacles.append(entity_id)

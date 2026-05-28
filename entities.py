@@ -65,6 +65,7 @@ def create_ai_enemy(ecs_manager, assets, x, y, size):
     ecs_manager.add_component(entity_id, PositionComponent(x, y))
     ecs_manager.add_component(entity_id, RenderComponent(group))
     ecs_manager.add_component(entity_id, AIComponent())
+    ecs_manager.add_component(entity_id, ColliderComponent("player", size, size))
     
     return entity_id, group
 
@@ -73,7 +74,7 @@ def create_obstacle(ecs_manager, assets, x, y, width, height, speed, direction, 
     
     if lane_type == LaneType.ROAD:
         key = "truck" if width > height else "car"
-        graphics_item = assets.create_entity_graphic(key, width, height, "yellow")
+        graphics_item = assets.create_entity_graphic(key, width, height, "yellow", flip_x=(direction == -1))
         tag = "car"
         
     elif lane_type == LaneType.RIVER:

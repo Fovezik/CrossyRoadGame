@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QWid
 from PyQt6.QtCore import QTimer, Qt
 
 from config import TILE_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT, SETTINGS
+from generator import LaneType
 from world import WorldManager
 from physics import PhysicsEngine
 from ecs import EntityManager, PositionComponent
@@ -32,9 +33,9 @@ class MainWindow(QMainWindow):
         self.my_id = None
         self.remote_players = {}
         self.net_queue = queue.Queue()
-        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client.connect((SETTINGS.data["host"], SETTINGS.data["port"]))
-        threading.Thread(target=self.listen_to_server, daemon=True).start()
+        self.client = None
+        self.is_multiplayer = False
+        self.ai_mode = False
         
         self.assets = AssetManager(TILE_SIZE)
         self.ecs = EntityManager()
@@ -60,6 +61,10 @@ class MainWindow(QMainWindow):
         
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.game_loop)
+        
+        self.net_timer = QTimer(self)
+        self.net_timer.timeout.connect(self.process_net_queue)
+        self.net_timer.start(16)
         
         self.current_seed = 1234
         #self.current_seed = random.randint(0, 999999)
@@ -107,16 +112,21 @@ class MainWindow(QMainWindow):
             layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
             return btn
 
-        self.action_btn = create_btn("START GAME", "#4CAF50", self.handle_action_btn)
+        self.action_btn = create_btn("LOCAL PLAY", "#4CAF50", self.handle_action_btn)
+        self.ai_btn = create_btn("AI MODE: OFF", "#607D8B", self.toggle_ai_mode)
+        self.connect_btn = create_btn("CONNECT TO SERVER", "#E91E63", self.handle_connect_btn)
+        self.start_multi_btn = create_btn("START MULTIPLAYER", "#E91E63", self.handle_start_multi)
         self.load_replay_btn = create_btn("LOAD REPLAY", "#9C27B0", self.load_replay)
         self.replay_btn = create_btn("WATCH REPLAY", "#2196F3", self.watch_replay)
         self.save_replay_btn = create_btn("SAVE REPLAY", "#FF9800", self.save_replay)
 
+        self.start_multi_btn.hide()
         self.replay_btn.hide()
         self.save_replay_btn.hide()
 
-    def start(self, seed, is_replay=False, lock_input=False):
+    def start(self, seed, is_replay=False, lock_input=False, ai_mode=False):
         random.seed(seed)
+        self.current_seed = seed
         self.frame_count = 0
         
         if not is_replay:
@@ -124,20 +134,21 @@ class MainWindow(QMainWindow):
 
         self.ecs.clear_all()
         self.difficulty.reset()
-        self.world.reset()
+        
+        self.world.is_host = not self.is_multiplayer or getattr(self, 'my_id', None) == 1
+        self.world.on_spawn_obstacle = self.on_spawn_obstacle
+        self.world.reset(seed)
 
         start_x = (WINDOW_WIDTH // TILE_SIZE // 2) * TILE_SIZE
         start_y = WINDOW_HEIGHT - (4 * TILE_SIZE)
-        #self.player_entity, player_rect = create_player(self.ecs, self.assets, start_x, start_y, TILE_SIZE)
-        #self.world.addItem(player_rect)
         
-        bot_id, bot_rect = create_ai_enemy(self.ecs, self.assets, start_x, start_y - 200, TILE_SIZE)
-        self.world.addItem(bot_rect)
-
-        self.player_entity = bot_id
-        self.view.player_entity = bot_id
-
-        #self.view.player_entity = self.player_entity
+        if ai_mode:
+            self.player_entity, player_rect = create_ai_enemy(self.ecs, self.assets, start_x, start_y, TILE_SIZE)
+        else:
+            self.player_entity, player_rect = create_player(self.ecs, self.assets, start_x, start_y, TILE_SIZE)
+            
+        self.world.addItem(player_rect)
+        self.view.player_entity = self.player_entity
         self.view.camera_y = start_y - 100
         self.view.centerOn(WINDOW_WIDTH / 2, self.view.camera_y)
 
@@ -151,8 +162,44 @@ class MainWindow(QMainWindow):
             self.timer.start(int(1000 / 60))
             self.view.setFocus()
 
+    def toggle_ai_mode(self):
+        self.ai_mode = not self.ai_mode
+        self.ai_btn.setText(f"AI MODE: {'ON' if self.ai_mode else 'OFF'}")
+
+    def handle_connect_btn(self):
+        if self.game_state in ["MENU", "GAME_OVER"]:
+            try:
+                self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.client.connect((SETTINGS.data["host"], SETTINGS.data["port"]))
+                threading.Thread(target=self.listen_to_server, daemon=True).start()
+                self.is_multiplayer = True
+                self.ai_mode = False
+            except Exception as e:
+                print(f"Connection failed: {e}")
+                return
+                
+            self.title_label.setText("WAITING FOR PLAYERS...")
+            self.action_btn.hide()
+            self.ai_btn.hide()
+            self.connect_btn.hide()
+            self.load_replay_btn.hide()
+            self.replay_btn.hide()
+            self.save_replay_btn.hide()
+
+    def handle_start_multi(self):
+        seed = random.randint(0, 999999)
+        msg = {"type": "START", "seed": seed}
+        try:
+            self.client.send((json.dumps(msg) + "\n").encode('utf8'))
+        except Exception as e:
+            pass
+        self.start(seed, is_replay=False, lock_input=False, ai_mode=False)
+
     def handle_action_btn(self):
-        if self.game_state in ["MENU", "PAUSED"]:
+        if self.game_state == "MENU":
+            self.is_multiplayer = False
+            self.start(self.current_seed, is_replay=False, lock_input=False, ai_mode=self.ai_mode)
+        elif self.game_state == "PAUSED":
             self.game_state = "PLAYING"
             self.menu_overlay.hide()
             self.score_label.show()
@@ -160,8 +207,8 @@ class MainWindow(QMainWindow):
             self.timer.start(int(1000 / 60))
             self.view.setFocus()
         elif self.game_state == "GAME_OVER":
-            #self.current_seed = random.randint(0, 999999)
-            self.start(self.current_seed, is_replay=False, lock_input=False)
+            self.is_multiplayer = False
+            self.start(self.current_seed, is_replay=False, lock_input=False, ai_mode=self.ai_mode)
             self.replay_btn.hide()
             self.save_replay_btn.hide()
 
@@ -176,6 +223,8 @@ class MainWindow(QMainWindow):
             self.title_label.setText("PAUSED")
             self.action_btn.setText("RESUME")
             self.action_btn.setStyleSheet("font-size: 24px; font-weight: bold; color: white; background-color: #4CAF50; border-radius: 10px;")
+            self.ai_btn.hide()
+            self.connect_btn.hide()
             self.menu_overlay.show()
             
         elif self.game_state == "PAUSED":
@@ -203,18 +252,35 @@ class MainWindow(QMainWindow):
         self.save_replay_btn.setStyleSheet("font-size: 20px; font-weight: bold; color: white; background-color: #FF9800; border-radius: 10px; margin-top: 10px;")
         self.save_replay_btn.show()
         
+        self.ai_btn.show()
+        self.connect_btn.show()
         self.replay_btn.show()
         self.load_replay_btn.hide()
         
         self.menu_overlay.show()
 
-    def game_loop(self):
+    def process_net_queue(self):
         while not self.net_queue.empty():
             msg = self.net_queue.get()
             
             if msg["type"] == "INIT": 
                 self.my_id = msg["id"]
-                
+                if self.is_multiplayer and self.game_state in ["MENU", "GAME_OVER"]:
+                    if self.my_id == 1:
+                        self.title_label.setText("YOU ARE HOST")
+                        self.start_multi_btn.show()
+                    else:
+                        self.title_label.setText("WAITING FOR HOST TO START...")
+                        
+            elif msg["type"] == "START":
+                self.start(msg["seed"], is_replay=False, lock_input=False, ai_mode=False)
+
+            elif msg["type"] == "SPAWN_OBSTACLE":
+                self.world.spawn_obstacle_from_net(
+                    msg["x"], msg["y"], msg["width"], 
+                    msg["speed"], msg["direction"], LaneType(msg["lane_type"])
+                )
+
             elif msg["type"] == "MOVE":
                 pid = msg["id"]
                 if pid not in self.remote_players:
@@ -233,6 +299,7 @@ class MainWindow(QMainWindow):
                         pos.x = msg["x"]
                         pos.y = msg["y"]
                         
+    def game_loop(self):
         self.frame_count += 1
         if self.replay.is_replaying:
             self.replay.apply_actions(self.frame_count, self.ecs, self.player_entity)
@@ -246,9 +313,25 @@ class MainWindow(QMainWindow):
 
     def on_player_moved(self, event):
         self.replay.record_action(self.frame_count, event.x, event.y)
-        if self.my_id is not None:
+        if getattr(self, 'is_multiplayer', False) and self.my_id is not None and getattr(self, 'client', None):
             msg = {"type": "MOVE", "id": self.my_id, "x": event.x, "y": event.y}
-            self.client.send((json.dumps(msg) + "\n").encode('utf8'))
+            try:
+                self.client.send((json.dumps(msg) + "\n").encode('utf8'))
+            except Exception as e:
+                print(f"Network error: {e}")
+
+    def on_spawn_obstacle(self, x, y, width, speed, direction, lane_type):
+        if getattr(self, 'is_multiplayer', False) and getattr(self, 'my_id', None) == 1 and getattr(self, 'client', None):
+            msg = {
+                "type": "SPAWN_OBSTACLE",
+                "x": x, "y": y, "width": width,
+                "speed": speed, "direction": direction,
+                "lane_type": lane_type.value
+            }
+            try:
+                self.client.send((json.dumps(msg) + "\n").encode('utf8'))
+            except Exception as e:
+                pass
     
     def watch_replay(self):
         saved_seed = self.replay.start_replaying()

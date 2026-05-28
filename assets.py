@@ -1,5 +1,5 @@
 import os
-from PyQt6.QtGui import QPixmap, QBrush, QColor, QPen
+from PyQt6.QtGui import QPixmap, QBrush, QColor, QPen, QTransform
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsPixmapItem
 
@@ -57,9 +57,11 @@ class AssetManager:
     def get_lane_brush(self, lane_key) -> QBrush:
         return self.lane_brushes.get(lane_key, QBrush(QColor("black")))
 
-    def create_entity_graphic(self, entity_key: str, width: int, height: int, fallback_color: str):
+    def create_entity_graphic(self, entity_key: str, width: int, height: int, fallback_color: str, flip_x: bool = False):
         if entity_key in self.entity_pixmaps:
             pixmap = self.entity_pixmaps[entity_key]
+            if flip_x:
+                pixmap = pixmap.transformed(QTransform().scale(-1, 1))
             scaled_pixmap = pixmap.scaled(int(width), int(height), Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.FastTransformation)
             return QGraphicsPixmapItem(scaled_pixmap)
         else:

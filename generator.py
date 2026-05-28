@@ -17,7 +17,8 @@ class LaneData:
     spawn_rate: float
 
 class MapGenerator:
-    def __init__(self):
+    def __init__(self, seed=1234):
+        self.map_rng = random.Random(seed)
         self.lane_history = []
         self.custom_idx = 0
 
@@ -55,15 +56,15 @@ class MapGenerator:
             if last_1 in (LaneType.RIVER, LaneType.RIVER_LILY, LaneType.ROAD):
                 chosen_type = LaneType.GRASS
             else:
-                chosen_type = random.choice(allowed_types)
+                chosen_type = self.map_rng.choice(allowed_types)
 
         direction = 0
         speed = 0.0
         spawn_rate = 0.0
 
         if chosen_type in (LaneType.ROAD, LaneType.RIVER):
-            direction = random.choice([-1, 1]) 
-            speed = random.uniform(1.0, 3.0) 
-            spawn_rate = random.uniform(0.01, 0.03)
+            direction = self.map_rng.choice([-1, 1]) 
+            speed = self.map_rng.uniform(1.0, 3.0) 
+            spawn_rate = self.map_rng.uniform(0.01, 0.03)
 
         return LaneData(chosen_type, direction, speed, spawn_rate)
